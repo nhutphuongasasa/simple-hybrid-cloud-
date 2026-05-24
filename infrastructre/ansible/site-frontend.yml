@@ -1,0 +1,18 @@
+
+- name: Setup Ha tang Docker
+  hosts: all
+  become: true
+  roles:
+    - docker_role
+
+- name: Deploy front end application
+  hosts: all
+  become: true
+  roles:
+    - frontend_role
+
+- name: common tasks after provisioning
+  hosts: all
+  become: true
+  roles:
+    - post_provisioning_role

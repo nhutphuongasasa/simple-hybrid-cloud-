@@ -1,0 +1,10 @@
+- name: Cấu hình group Docker
+  group:
+    name: docker
+    state: present
+
+- name: Thêm user ubuntu vào group docker
+  user:
+    name: ubuntu
+    groups: docker
+    append: yes

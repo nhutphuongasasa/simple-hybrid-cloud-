@@ -1,0 +1,16 @@
+docker_install_compose: true
+docker_compose_version: "v2.24.5"
+docker_users:
+  - "{{ ansible_user }}"
+
+frontend_port: 3000
+backend_port: 3001
+backend_image: "phuongbt3232/inmutible-cloud-backend:latest"
+frontend_image: "phuongbt3232/inmutible-cloud-frontend:lastest"
+nginx_image: "nginx:latest"
+deploy_path: "/opt/app"
+DB_HOST: "192.168.10.33"
+DB_USERNAME: "dev_user"
+DB_PASSWORD: "phuong"
+DB_PORT: "5432"
+DB_DATABASE: "immutiblecloud"

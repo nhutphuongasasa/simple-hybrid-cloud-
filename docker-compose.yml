@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  # db:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgrespassword
+  #     POSTGRES_DB: symposium
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+
+  backend:
+    # image: phuongbt3232/inmutible-cloud-backend:lastest
+    build:
+      context: ./symposium-backend
+      dockerfile: Dockerfile
+    environment:
+      DB_HOST: ep-patient-dawn-ao964rc6-pooler.c-2.ap-southeast-1.aws.neon.tech
+      DB_PORT: 5432
+      DB_USERNAME: neondb_owner
+      DB_PASSWORD: npg_JB45MSnIAoqP
+      DB_DATABASE: neondb
+    ports:
+      - "3001:3001"
+    # depends_on:
+    #   - db
+
+  frontend:
+    image: phuongbt3232/inmutible-cloud-frontend:lastest
+    # build:
+    #   context: ./symposium-nextjs-1.0.0
+    #   dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  pgdata:

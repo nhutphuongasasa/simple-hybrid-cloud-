@@ -1,0 +1,6 @@
+project_id = "project-d465c63d-896c-4a24-818"
+# region  = "us-central1" 
+# zone    = "us-central1-a"
+region = "asia-east2"
+zone = "asia-east2-a"
+vpn_shared_secret = "phuongbt32"
