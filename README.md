@@ -16,86 +16,51 @@ Xây dựng một hệ thống web app thực tế với:
 
 2.Cấu trúc thư mục
 
-.
-├── infrastructure/
-│   ├── ansible/
-│   │   ├── group_vars/
-│   │   │   └── all.yml
-│   │   ├── roles/
-│   │   │   ├── backend_role/
-│   │   │   │   ├── tasks/
-│   │   │   │   └── templates/
-│   │   │   ├── docker_role/
-│   │   │   │   ├── tasks/
-│   │   │   │   └── templates/
-│   │   │   ├── frontend_role/
-│   │   │   │   ├── tasks/
-│   │   │   │   └── templates/
-│   │   │   └── post_provisioning_role/
-│   │   │       └── tasks/
-│   │   │           └── main.yml
-│   │   ├── ansible.cfg
-│   │   ├── inventory.ini
-│   │   ├── requirements.yml
-│   │   ├── site-backend.yml
-│   │   └── site-frontend.yml
-│   ├── packer/
-│   │   ├── backend.pkr.hcl
-│   │   └── frontend.pkr.hcl
-│   └── terraform/
-│       ├── .gitignore
-│       ├── .terraform.lock.hcl
-│       ├── firewall.tf
-│       ├── frontend.tf
-│       ├── input.tf
-│       ├── lb_internal.tf
-│       ├── network.tf
-│       ├── output.tf
-│       ├── provider.tf
-│       ├── terraform.tfvars
-│       ├── variables.tf
-│       └── vpn.tf
-├── docker-compose.yml
-├── nginx.conf
-└── README.md
+<img width="410" height="736" alt="image" src="https://github.com/user-attachments/assets/9da31abd-ae20-4d5f-8a84-c87eb4e64ba1" />
+
 
 3.Hướng dẫn triển khai
+
 Bước 1 — Build GCP images với Packer + Ansible
 
-Packer tạo VM tạm trên GCP, Ansible chạy playbook để cài đặt app, rồi đóng gói thành custom image.
+  Packer tạo VM tạm trên GCP, Ansible chạy playbook để cài đặt app, rồi đóng gói thành custom image.
 
-packer init frontend.pkr.hcl && packer build frontend.pkr.hcl   
-packer init backend.pkr.hcl  && packer build backend.pkr.hcl    
+    packer init frontend.pkr.hcl && packer build frontend.pkr.hcl   
 
-Ansible thực hiện theo thứ tự trong mỗi playbook:
+    packer init backend.pkr.hcl  && packer build backend.pkr.hcl    
 
-Role                     Việc làm
-docker_role              Cài Docker Engine
-frontend_role            Render nginx.conf + docker-compose.yml từ template Jinja2, deploy frontend + nginx
-backend_role             Render docker-compose.yml với biến môi trường DB, deploy backend
-post_provisioning_role   Thêm user ubuntu vào group docker
+  Ansible thực hiện theo thứ tự trong mỗi playbook:
+
+<img width="774" height="280" alt="image" src="https://github.com/user-attachments/assets/bdd7f703-2093-4783-b163-97667adba8b6" />
+
 
 Nginx (port 80) làm reverse proxy:
 
-/api/* → Backend VM 192.168.1.100:3001 (qua internal VPC)
-/ → Frontend container localhost:3000
+    /api/* → Backend VM 192.168.1.100:3001 (qua internal VPC)
 
-Backend kết nối PostgreSQL on-prem qua VPN:
+    / → Frontend container localhost:3000
 
-Host: 192.168.10.33, Port: 5432, DB: immutiblecloud
+    Backend kết nối PostgreSQL on-prem qua VPN:
+
+    Host: 192.168.10.33, Port: 5432, DB: immutiblecloud
 
 Bước 2 — Tạo hạ tầng GCP với Terraform
 
-terraform init
-terraform plan 
-terraform apply --auto-approve
+    terraform init
+
+    terraform plan
+
+    terraform apply --auto-approve
 
 Bước 3 — Cấu hình pfSense On-Premises
 
-IPSec: IKEv2, pre-shared key khớp với vpn_shared_secret, bind vào CARP VIP 192.168.175.190. 
-Tạo 2 tunnel tương ứng với 2 interface của GCP HA VPN.
-Dam bao dien dung peer ip va local ip duoc GCP HA VPN cung cap 
-Dam bao thiet lap udng chi so phase 1 va phase 2 
+    IPSec: IKEv2, pre-shared key khớp với vpn_shared_secret, bind vào CARP VIP 192.168.175.190
+
+    Tạo 2 tunnel tương ứng với 2 interface của GCP HA VPN.
+
+    Dam bao dien dung peer ip va local ip duoc GCP HA VPN cung cap 
+
+    Dam bao thiet lap udng chi so phase 1 va phase 2 
 
 4.Luồng traffic
 
@@ -108,5 +73,7 @@ Node Secondary: <IP_SECONDARY> Standby
 CARP VIP: 192.168.175.190 VIP
 
 6.pfsense HA - vpn
+
 7. trien kahi logic web tren cloud
+
 8. loi gap phai trong qua trinh trien khai 
