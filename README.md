@@ -1,7 +1,9 @@
 Hybrid Cloud Lab — GCP + On-Premises (VMware Workstation)
+
 Lab triển khai hạ tầng hybrid cloud kết hợp Google Cloud Platform và môi trường On-Premises chạy trên VMware Workstation, kết nối qua HA VPN IPSec + BGP.
 
 Mục tiêu
+
 Xây dựng một hệ thống web app thực tế với:
 
 - Frontend và Backend chạy trên GCP, đóng gói bằng Docker Compose, image được build sẵn qua Packer + Ansible
