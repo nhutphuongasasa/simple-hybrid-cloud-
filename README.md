@@ -140,4 +140,68 @@ psql -h 192.168.10.33 -p 5432 -U dev_user -d immutiblecloud
 
 ---
 
-## 5.pfSense HA — CARP Failover
+## 5. pfSense HA + VPN
+
+### 5.1 CARP — Virtual IP Failover
+
+pfSense HA chạy trên 2 node (Primary + Secondary). Thay vì bind VPN vào IP vật lý của từng node, toàn bộ traffic đi qua **CARP VIP** — một IP ảo nổi giữa 2 node. Khi Primary down, Secondary tự nhận VIP trong vài giây mà không cần cấu hình lại gì trên GCP.
+
+Có 2 VIP được tạo — một trên interface WAN, một trên LAN — để đảm bảo cả traffic ra internet lẫn traffic nội bộ đều failover đồng thời.
+
+![VIP overview](./screenshots/vip.png)
+> Danh sách Virtual IPs trên pfSense — thấy cả 2 VIP đang ở trạng thái MASTER trên node Primary.
+
+![VIP WAN](./screenshots/vip-wan.png)
+> CARP VIP phía WAN — đây là IP mà pfSense dùng để chủ động kết nối (Initiator) ra GCP HA VPN. pfSense nằm sau NAT nên không có IP public riêng, buộc phải là Initiator thay vì Responder.
+
+![VIP LAN](./screenshots/vip-lan.png)
+> CARP VIP phía LAN — đảm bảo traffic từ on-prem về GCP cũng đi qua VIP thay vì IP vật lý của node.
+
+---
+
+### 5.2 HA Sync — Đồng bộ cấu hình giữa 2 node
+
+Để failover hoạt động đúng, toàn bộ cấu hình IPSec, firewall rules, VIP phải được đồng bộ liên tục từ Primary sang Secondary qua XMLRPC sync.
+
+![HA Sync config 1](./screenshots/ha-sync-config-1.png)
+> Cấu hình State Sync (pfsync) — đồng bộ connection state table để khi failover xảy ra các session đang chạy không bị drop.
+
+![HA Sync config 2](./screenshots/ha-sync-config-2.png)
+> Cấu hình Configuration Sync (XMLRPC) — tự động đẩy toàn bộ config từ Primary sang Secondary mỗi khi có thay đổi. Nhờ đây Secondary luôn sẵn sàng takeover mà không cần cấu hình lại thủ công.
+
+---
+
+### 5.3 IPSec — 2 Tunnel lên GCP HA VPN
+
+GCP HA VPN yêu cầu **2 tunnel** để đạt SLA 99.99%. Mỗi tunnel kết nối từ CARP VIP của pfSense đến một interface khác nhau trên GCP VPN Gateway. Khi một tunnel down, BGP tự reroute traffic sang tunnel còn lại mà không bị gián đoạn.
+
+**Tunnel 1 — Phase 1**
+
+![IPSec Phase 1 Tunnel 1 - tab 1](./screenshots/ipsec-phase1-tunnel1-1.png)
+> Phase 1 tunnel 1: IKEv2, bind vào CARP VIP, Remote Gateway là IP interface 0 của GCP HA VPN.
+
+![IPSec Phase 1 Tunnel 1 - tab 2](./screenshots/ipsec-phase1-tunnel1-2.png)
+> Encryption settings Phase 1 tunnel 1 — phải khớp chính xác với cấu hình phía GCP.
+
+**Tunnel 1 — Phase 2**
+
+![IPSec Phase 2 Tunnel 1 - tab 1](./screenshots/ipsec-phase2-tunnel1-1.png)
+> Phase 2 tunnel 1: Traffic selector `192.168.10.0/24` (on-prem DB subnet) ↔ `192.168.1.0/24` (GCP VPC subnet).
+
+![IPSec Phase 2 Tunnel 1 - tab 2](./screenshots/ipsec-phase2-tunnel1-2.png)
+> Encryption settings Phase 2 tunnel 1.
+
+**Tunnel 2 — Phase 1**
+
+![IPSec Phase 1 Tunnel 2 - tab 1](./screenshots/ipsec-phase1-tunnel2-1.png)
+> Phase 1 tunnel 2: Tương tự tunnel 1 nhưng Remote Gateway là IP interface 1 của GCP HA VPN.
+
+![IPSec Phase 1 Tunnel 2 - tab 2](./screenshots/ipsec-phase1-tunnel2-2.png)
+
+**Tunnel 2 — Phase 2**
+
+![IPSec Phase 2 Tunnel 2 - tab 1](./screenshots/ipsec-phase2-tunnel2-1.png)
+> Phase 2 tunnel 2: Traffic selector giống tunnel 1 — cùng subnet, chỉ khác đường đi vật lý.
+
+![IPSec Phase 2 Tunnel 2 - tab 2](./screenshots/ipsec-phase2-tunnel2-2.png)
+
