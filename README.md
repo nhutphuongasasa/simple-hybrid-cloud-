@@ -1,81 +1,143 @@
-Hybrid Cloud Lab — GCP + On-Premises (VMware Workstation)
+# Hybrid Cloud Lab — GCP + On-Premises (VMware Workstation)
 
-Lab triển khai hạ tầng hybrid cloud kết hợp Google Cloud Platform và môi trường On-Premises chạy trên VMware Workstation, kết nối qua HA VPN IPSec + BGP.
+Lab triển khai hạ tầng **hybrid cloud** kết hợp Google Cloud Platform và môi trường On-Premises chạy trên VMware Workstation, kết nối qua **HA VPN IPSec + BGP**.
 
-Mục tiêu
+---
 
-Xây dựng một hệ thống web app thực tế với:
+## Mục tiêu
 
-- Frontend và Backend chạy trên GCP, đóng gói bằng Docker Compose, image được build sẵn qua Packer + Ansible
-- Database (PostgreSQL) đặt on-premises, backend GCP kết nối về qua VPN tunnel
-- HA VPN 2 tunnel + BGP đảm bảo kết nối không bị gián đoạn khi một tunnel lỗi
-- pfSense HA (CARP) on-premises để VPN không có single point of failure
+Xây dựng hệ thống web app thực tế với:
 
-1.Kiến trúc
+- **Frontend & Backend** chạy trên GCP, đóng gói bằng Docker Compose, image build sẵn qua Packer + Ansible
+- **Database (PostgreSQL)** đặt on-premises, backend GCP kết nối về qua VPN tunnel
+- **HA VPN 2 tunnel + BGP** đảm bảo kết nối không gián đoạn khi một tunnel lỗi
+- **pfSense HA (CARP)** on-premises để VPN không có single point of failure
+
+---
+
+## 1.Kiến trúc tổng quan
 
 
 <img width="826" height="758" alt="image" src="https://github.com/user-attachments/assets/722333a4-0b43-4918-82cb-f22c200d0d3d" />
 
-2.Cấu trúc thư mục
+**Luồng traffic:**
+User → nginx:80 → /api/* → Backend:3001 → VPN Tunnel → PostgreSQL on-prem:5432
+
+User → /      → Frontend:3000
+
+---
+
+## Cấu trúc thư mục
 
 <img width="410" height="736" alt="image" src="https://github.com/user-attachments/assets/9da31abd-ae20-4d5f-8a84-c87eb4e64ba1" />
 
+---
 
-3.Hướng dẫn triển khai
+## 3.Stack công nghệ
 
-Bước 1 — Build GCP images với Packer + Ansible
+| Layer | Công nghệ |
+|---|---|
+| Cloud Provider | Google Cloud Platform (asia-east2) |
+| IaC | Terraform ~> 5.0 |
+| Image Build | Packer + Ansible |
+| Container Runtime | Docker Compose |
+| VPN | GCP HA VPN + IPSec IKEv2 + BGP |
+| On-prem Firewall | pfSense HA (CARP failover) |
+| Routing Protocol | BGP (GCP ASN 65001 ↔ pfSense ASN 65002) |
+| OS | Ubuntu 22.04 LTS |
+| Database | PostgreSQL (on-premises) |
 
-  Packer tạo VM tạm trên GCP, Ansible chạy playbook để cài đặt app, rồi đóng gói thành custom image.
+---
 
-    packer init frontend.pkr.hcl && packer build frontend.pkr.hcl   
+## 4.Hướng dẫn triển khai
 
-    packer init backend.pkr.hcl  && packer build backend.pkr.hcl    
+### Yêu cầu
 
-  Ansible thực hiện theo thứ tự trong mỗi playbook:
+- `gcloud` CLI đã xác thực (`gcloud auth application-default login`)
+- `terraform >= 1.5.0`
+- `packer` đã cài
+- `ansible` đã cài, đã chạy `ansible-galaxy install -r requirements.yml`
+- Service Account `packer@<project-id>.iam.gserviceaccount.com` có role `Compute Admin`
 
-<img width="774" height="280" alt="image" src="https://github.com/user-attachments/assets/bdd7f703-2093-4783-b163-97667adba8b6" />
+---
 
+### Bước 1 — Build GCP images với Packer + Ansible
 
-Nginx (port 80) làm reverse proxy:
+Packer tạo VM tạm trên GCP, Ansible chạy playbook cài app, rồi đóng gói thành custom image.
 
-    /api/* → Backend VM 192.168.1.100:3001 (qua internal VPC)
+```bash
+cd infrastructure/packer
 
-    / → Frontend container localhost:3000
+packer init frontend.pkr.hcl && packer build frontend.pkr.hcl
+packer init backend.pkr.hcl  && packer build backend.pkr.hcl
+```
 
-    Backend kết nối PostgreSQL on-prem qua VPN:
+Ansible thực hiện theo thứ tự trong mỗi playbook:
 
-    Host: 192.168.10.33, Port: 5432, DB: immutiblecloud
+1. `docker_role` — Cài Docker CE + Docker Compose plugin
+2. `frontend_role` / `backend_role` — Render config từ template J2, tạo thư mục `/opt/app`
+3. `post_provisioning_role` — Thêm user `ubuntu` vào group `docker`
 
-Bước 2 — Tạo hạ tầng GCP với Terraform
+---
 
-    terraform init
+### Bước 2 — Tạo hạ tầng GCP với Terraform
 
-    terraform plan
+```bash
+cd infrastructure/terraform
 
-    terraform apply --auto-approve
+terraform init
+terraform plan
+terraform apply --auto-approve
+```
 
-Bước 3 — Cấu hình pfSense On-Premises
+Tài nguyên được tạo:
 
-    IPSec: IKEv2, pre-shared key khớp với vpn_shared_secret, bind vào CARP VIP 192.168.175.190
+- VPC `main-vpc`, subnet `192.168.1.0/24`
+- Cloud Router (BGP ASN 65001), Cloud NAT
+- VM frontend (public IP) + VM backend (static internal IP `192.168.1.100`)
+- HA VPN Gateway (2 interfaces), 2 VPN tunnels, 2 BGP peers
+- Firewall rules (SSH, HTTP, HTTPS, BGP port 179, on-prem traffic)
 
-    Tạo 2 tunnel tương ứng với 2 interface của GCP HA VPN.
+---
 
-    Dam bao dien dung peer ip va local ip duoc GCP HA VPN cung cap 
+### Bước 3 — Cấu hình pfSense On-Premises
 
-    Dam bao thiet lap udng chi so phase 1 va phase 2 
+Sau khi `terraform apply` xong, lấy IP của 2 VPN interface từ Google Cloud Console.
 
-4.Luồng traffic
+**Cấu hình IPSec:**
 
-<img width="721" height="191" alt="image" src="https://github.com/user-attachments/assets/4869fa49-b30a-4667-81a1-4a701331e05c" />
+| Thông số | Giá trị |
+|---|---|
+| IKE Version | IKEv2 |
+| Pre-shared Key | Giá trị `vpn_shared_secret` trong tfvars |
+| Local IP (pfSense) | CARP VIP `192.168.175.190` |
+| Remote Gateway Tunnel 1 | IP interface 0 của GCP HA VPN |
+| Remote Gateway Tunnel 2 | IP interface 1 của GCP HA VPN |
+| Phase 2 Traffic Selector | `192.168.10.0/24` ↔ `192.168.1.0/24` |
 
-5.pfsense HA — CARP Failover
+**Cấu hình BGP:**
 
-Node primary: <IP_PRIMARY> Master
-Node Secondary: <IP_SECONDARY> Standby
-CARP VIP: 192.168.175.190 VIP
+| Thông số | Giá trị |
+|---|---|
+| Local ASN | 65002 |
+| Neighbor 1 | `169.254.128.41` (GCP tunnel 1) |
+| Neighbor 2 | `169.254.151.181` (GCP tunnel 2) |
+| Remote ASN | 65001 |
+| Advertise | `192.168.10.0/24` |
 
-6.pfsense HA - vpn
+---
 
-7. trien kahi logic web tren cloud
+### Bước 4 — Kiểm tra kết nối
 
-8. loi gap phai trong qua trinh trien khai 
+```bash
+# Ping PostgreSQL on-prem từ backend VM
+ping 192.168.10.33
+
+# Kiểm tra kết nối DB
+psql -h 192.168.10.33 -p 5432 -U dev_user -d immutiblecloud
+
+```
+
+---
+
+## 5.pfSense HA — CARP Failover
