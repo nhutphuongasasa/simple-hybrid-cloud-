@@ -12,12 +12,12 @@ resource "google_compute_external_vpn_gateway" "pfsense" {
 
   interface {
     id         = 0
-    ip_address = "123.21.249.22"  
+    ip_address = "123.21.141.108"  
   }
 
   interface {
     id         = 1
-    ip_address = "123.21.249.22"  
+    ip_address = "123.21.141.108"  
   }
 }
 

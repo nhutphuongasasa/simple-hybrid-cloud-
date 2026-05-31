@@ -11,3 +11,4 @@ services:
       DB_DATABASE: {{ DB_DATABASE }}
     ports:
       - "{{ backend_port }}:{{ backend_port }}"
+    restart: unless-stopped
