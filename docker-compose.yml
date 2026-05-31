@@ -13,10 +13,10 @@ services:
   #     - pgdata:/var/lib/postgresql/data
 
   backend:
-    # image: phuongbt3232/inmutible-cloud-backend:lastest
-    build:
-      context: ./symposium-backend
-      dockerfile: Dockerfile
+    image: phuongbt3232/inmutible-cloud-backend:latest
+    # build:
+      # context: ./symposium-backend
+      # dockerfile: Dockerfile
     environment:
       DB_HOST: ep-patient-dawn-ao964rc6-pooler.c-2.ap-southeast-1.aws.neon.tech
       DB_PORT: 5432
