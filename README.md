@@ -247,3 +247,39 @@ BGP chạy trên pfSense qua package **FRR (Free Range Routing)**. Mỗi tunnel 
 
 ![FRR BGP Route](./screenshots/bgp-received-routes.png)
 > pfSense đã nhận được route `192.168.1.0/24` (GCP VPC subnet) từ GCP qua BGP — traffic on-prem → GCP được forward đúng qua tunnel thay vì bị drop.
+
+---
+
+### 5.5 Xác nhận từ phía GCP
+
+Để chứng minh kết nối hoạt động 2 chiều, phía GCP cũng phải thấy tunnel Established và học được route on-prem qua BGP.
+
+**GCP VPN Tunnels — cả 2 tunnel ở trạng thái Established:**
+
+![GCP VPN Tunnels](./screenshots/gcp-vpn-tunnels.png)
+> Network Connectivity → VPN → Cloud VPN Tunnels — cả 2 tunnel `pfsense1` và `pfsense2` đều Established, xác nhận IPSec lên thành công từ cả 2 phía.
+
+**BGP session chi tiết tunnel 1:**
+
+![GCP BGP Tunnel 1](./screenshots/gcp-bgp-tunnel1.png)
+> BGP session tunnel 1 Established với peer `169.254.128.42` (pfSense) — GCP đã trao đổi route với pfSense qua tunnel này.
+
+**BGP session chi tiết tunnel 2:**
+
+![GCP BGP Tunnel 2](./screenshots/gcp-bgp-tunnel2.png)
+> BGP session tunnel 2 Established với peer `169.254.151.182` (pfSense) — 2 BGP session độc lập đảm bảo failover tự động khi một tunnel down.
+
+**Cloud Router — tổng quan BGP sessions:**
+
+![GCP Cloud Router](./screenshots/gcp-cloud-router.png)
+> Network Connectivity → Cloud Routers → main-router — thấy cả 2 BGP peer với pfSense ASN 65002 đang hoạt động.
+
+**Routes học được từ pfSense qua tunnel 1:**
+
+![GCP Cloud Router Learned Routes Tunnel 1](./screenshots/gcp-cloud-router-learned-tunnel1.png)
+> Cloud Router đã học được route `192.168.10.0/24` (on-prem DB subnet) từ pfSense qua tunnel 1 — GCP biết đường đi về PostgreSQL on-premises.
+
+**Routes học được từ pfSense qua tunnel 2:**
+
+![GCP Cloud Router Learned Routes Tunnel 2](./screenshots/gcp-cloud-router-learned-tunnel2.png)
+> Route `192.168.10.0/24` cũng được học qua tunnel 2 — khi tunnel 1 down, GCP tự động dùng tunnel 2 để forward traffic về on-prem mà không cần cấu hình lại.
