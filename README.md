@@ -222,22 +222,28 @@ BGP chạy trên pfSense qua package **FRR (Free Range Routing)**. Mỗi tunnel 
 
 **FRR Global Settings — bật FRR, khai báo Router ID và password:**
 
-![FRR Global Settings](./screenshots/frr-global.png)
+![FRR Global Settings](./screenshots/bgp-global-setting.png)
 
-**BGP General — khai báo Local AS và Router ID:**
+**BGP General — khai báo subnet:**
 
-![FRR BGP General](./screenshots/frr-bgp.png)
+![FRR BGP General](./screenshots/bgp-network-distribute.png)
 
 **BGP Neighbors — 2 peer tương ứng với 2 tunnel lên GCP:**
 
-![FRR BGP Neighbors](./screenshots/frr-neighbors.png)
+![FRR BGP Neighbors](./screenshots/bgp-neighbor.png)
 
 **Xác nhận BGP hoạt động — `show ip bgp summary` qua Diagnostics → Command Prompt:**
 
-![FRR BGP Summary](./screenshots/frr-bgp-summary.png)
+![FRR BGP Summary](./screenshots/bgp-summary.png)
 > Cả 2 neighbor `169.254.128.41` và `169.254.151.182` ở trạng thái Established — BGP session lên thành công trên cả 2 tunnel.
+
+**Route vaf nexthops**
+![FRR BGP Summary](./screenshots/bgp-routes.png)
+
+![FRR BGP Summary](./screenshots/bgp-nexthops.png)
+
 
 **Route nhận được từ GCP — `show ip route bgp`:**
 
-![FRR BGP Route](./screenshots/frr-route-bgp.png)
+![FRR BGP Route](./screenshots/bgp-received-routes.png)
 > pfSense đã nhận được route `192.168.1.0/24` (GCP VPC subnet) từ GCP qua BGP — traffic on-prem → GCP được forward đúng qua tunnel thay vì bị drop.
