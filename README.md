@@ -237,10 +237,10 @@ BGP chạy trên pfSense qua package **FRR (Free Range Routing)**. Mỗi tunnel 
 ![FRR BGP Summary](./screenshots/bgp-summary.png)
 > Cả 2 neighbor `169.254.128.41` và `169.254.151.182` ở trạng thái Established — BGP session lên thành công trên cả 2 tunnel.
 
-**Route vaf nexthops**
+**Route và nexthops**
 ![FRR BGP Summary](./screenshots/bgp-routes.png)
 
-![FRR BGP Summary](./screenshots/bgp-nexthops.png)
+![FRR BGP Summary](./screenshots/bgp-next-hops.png)
 
 
 **Route nhận được từ GCP — `show ip route bgp`:**
