@@ -205,3 +205,39 @@ GCP HA VPN yêu cầu **2 tunnel** để đạt SLA 99.99%. Mỗi tunnel kết n
 
 ![IPSec Phase 2 Tunnel 2 - tab 2](./screenshots/ipsec-phase2-tunnel2-2.png)
 
+### 5.4 BGP — Quảng bá route qua FRR (pfSense)
+
+BGP chạy trên pfSense qua package **FRR (Free Range Routing)**. Mỗi tunnel IPSec có một BGP session riêng — khi một tunnel down, BGP tự reroute toàn bộ traffic sang tunnel còn lại mà không cần can thiệp thủ công.
+
+**Thông số BGP:**
+
+| Thông số | Giá trị |
+|---|---|
+| Local ASN (pfSense) | 65002 |
+| Remote ASN (GCP) | 65001 |
+| Router ID | 192.168.175.190 (CARP VIP) |
+| Neighbor 1 | 169.254.128.41 (GCP tunnel 1) |
+| Neighbor 2 | 169.254.151.181 (GCP tunnel 2) |
+| Subnet advertise về GCP | 192.168.10.0/24 |
+
+**FRR Global Settings — bật FRR, khai báo Router ID và password:**
+
+![FRR Global Settings](./screenshots/frr-global.png)
+
+**BGP General — khai báo Local AS và Router ID:**
+
+![FRR BGP General](./screenshots/frr-bgp.png)
+
+**BGP Neighbors — 2 peer tương ứng với 2 tunnel lên GCP:**
+
+![FRR BGP Neighbors](./screenshots/frr-neighbors.png)
+
+**Xác nhận BGP hoạt động — `show ip bgp summary` qua Diagnostics → Command Prompt:**
+
+![FRR BGP Summary](./screenshots/frr-bgp-summary.png)
+> Cả 2 neighbor `169.254.128.41` và `169.254.151.182` ở trạng thái Established — BGP session lên thành công trên cả 2 tunnel.
+
+**Route nhận được từ GCP — `show ip route bgp`:**
+
+![FRR BGP Route](./screenshots/frr-route-bgp.png)
+> pfSense đã nhận được route `192.168.1.0/24` (GCP VPC subnet) từ GCP qua BGP — traffic on-prem → GCP được forward đúng qua tunnel thay vì bị drop.
