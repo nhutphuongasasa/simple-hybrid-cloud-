@@ -283,3 +283,8 @@ BGP chạy trên pfSense qua package **FRR (Free Range Routing)**. Mỗi tunnel 
 
 ![GCP Cloud Router Learned Routes Tunnel 2](./screenshots/gcp-cloud-router-learned-tunnel2.png)
 > Route `192.168.10.0/24` cũng được học qua tunnel 2 — khi tunnel 1 down, GCP tự động dùng tunnel 2 để forward traffic về on-prem mà không cần cấu hình lại.
+
+**Routes của vpc:**
+
+![GCP Cloud Router](./screenshots/vpc-routes.png)
+
