@@ -290,4 +290,104 @@ BGP chạy trên pfSense qua package **FRR (Free Range Routing)**. Mỗi tunnel 
 
 > Route qua `192.168.10.0/24` đã được vpc học được
 
+## 6. Troubleshooting
 
+### 6.1 VPN tunnel không lên (Not Established)
+
+**Nguyên nhân thường gặp:**
+
+- không khớp với Pre-shared Key hoặc sai local ip hoặc peer ip
+- pfSense nằm sau NAT nên **phải là Initiator** — kiểm tra pfSense có đang chủ động kết nối không
+- cấu hình thuật toán giữa google cloud va pfsense không khớp giữa  2 bên
+
+> **Xử lý:** kiểm tra kỹ số liệu điền giữa 2 bên và xem log trên pfsense
+---
+
+### 6.2 Không có route nào để kết nối google cloud va pfsense
+
+**Triệu chứng:** Tunnel IPSec xanh nhưng BGP trên google cloud ping đến được LAN subnet 
+
+> **Xử lý:**
+Kiểm tra route tren vpc và route trên pfsense và kiểm tra xem có quản bá subnet cho peer không kiểm tra router map trên pfsense co chặn quản bá subnet không
+---
+
+### 6.3 BGP Established nhưng không ping được qua tunnel
+
+**Triệu chứng:** BGP session lên, route đã học, nhưng `ping 192.168.10.33` từ backend VM vẫn timeout.
+
+**Nguyên nhân thường gặp:**
+
+- VPC chưa học route về on-prem — kiểm tra GCP Cloud Router → Learned Routes
+- pfSense chưa advertise đúng subnet `192.168.10.0/24`
+- Firewall rule on-prem chặn traffic từ `192.168.1.0/24`
+- postgres server không có route trả về google cloud
+
+> **Xử lý:**
+
+```bash
+# Từ backend VM trên GCP
+ping 192.168.10.33
+
+# Kiểm tra route trên GCP VPC
+VPC Network → Routes → tìm route 192.168.10.0/24
+
+#Kiểm tra rule firewall
+pfsense ->firewall ->ipsec
+
+#kiểm tra route trên postgres server
+ip route
+```
+---
+
+### 6.4 Docker Compose không start sau khi deploy VM từ custom image
+
+**Triệu chứng:**
+
+VM khởi động bình thường, nhưng lệnh docker compose up -d không thể khởi động được các container hoặc trả về lỗi liên quan đến quyền truy cập (permission denied).
+
+**Nguyên nhân thường gặp:**
+
+User chưa có quyền: User ubuntu chưa được thêm vào group docker (thường do post_provisioning_role trong Ansible chạy không thành công).
+
+Sai quyền truy cập: Thư mục /opt/app bị thiết lập sai quyền sở hữu hoặc quyền thực thi.
+
+Lỗi render template: File .env không được tạo chính xác từ Ansible template (Jinja2).
+
+Xử lý
+Thực hiện các lệnh sau để kiểm tra và khắc phục:
+
+```bash
+#Fix quyền Docker
+sudo usermod -aG docker ubuntu
+newgrp docker
+
+# Kiểm tra và chạy lại dịch vụ
+cd /opt/app
+ls -la
+docker compose logs
+docker compose up -d
+```
+---
+
+### 6.5 BGP reconvergence chậm khi pfSense failover
+
+**Triệu chứng:**
+
+Khi một node pfSense gặp sự cố (Primary fail), phải mất khoảng 2 phút BGP session mới chuyển sang trạng thái Established. Điều này dẫn đến kết nối từ backend trên GCP tới PostgreSQL on-premises bị gián đoạn tạm thời.
+
+**Nguyên nhân thường gặp:**
+
+Timer mặc định: BGP Hold Timer và Keepalive mặc định trên FRR/pfSense khá dài .
+
+Thời gian hội tụ: Khi tunnel down, thời gian phát hiện lỗi và hội tụ lại diễn ra quá chậm.
+
+Xử lý
+Giảm BGP timer trên pfSense  để tăng tốc độ phản hồi:
+
+```Bash
+# Truy cập vào shell của FRR
+vtysh
+
+# Cấu hình giảm BGP timer
+pfsense -> frr bgp -> neighbor -> timer -> set 10s
+```
