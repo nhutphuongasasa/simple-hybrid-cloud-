@@ -288,3 +288,6 @@ BGP chạy trên pfSense qua package **FRR (Free Range Routing)**. Mỗi tunnel 
 
 ![GCP Cloud Router](./screenshots/vpc-routes.png)
 
+> Route qua `192.168.10.0/24` đã được vpc học được
+
+
